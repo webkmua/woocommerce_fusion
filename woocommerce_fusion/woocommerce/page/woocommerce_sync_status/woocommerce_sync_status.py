@@ -24,20 +24,40 @@ def get_dashboard_data(
 		row_filters["direction"] = direction
 
 	# Queue summary by (status, direction, sync_type) - covers both inbound and outbound
-	queue_summary = frappe.db.get_all(
-		"WooCommerce Sync Queue",
-		filters=filters,
-		fields=[
-			"status",
-			"direction",
-			"sync_type",
-			"woocommerce_server",
-			"count(name) as count",
-			"min(creation) as oldest",
-		],
-		group_by="status, direction, sync_type, woocommerce_server",
-		order_by="woocommerce_server, direction, sync_type, status",
-	)
+	if server_name:
+		queue_summary = frappe.db.sql(
+			"""
+			SELECT
+				status,
+				direction,
+				sync_type,
+				woocommerce_server,
+				count(name) as count,
+				min(creation) as oldest
+			FROM `tabWooCommerce Sync Queue`
+			WHERE woocommerce_server = %(server_name)s
+			GROUP BY status, direction, sync_type, woocommerce_server
+			ORDER BY woocommerce_server, direction, sync_type, status
+			""",
+			{"server_name": server_name},
+			as_dict=True,
+		)
+	else:
+		queue_summary = frappe.db.sql(
+			"""
+			SELECT
+				status,
+				direction,
+				sync_type,
+				woocommerce_server,
+				count(name) as count,
+				min(creation) as oldest
+			FROM `tabWooCommerce Sync Queue`
+			GROUP BY status, direction, sync_type, woocommerce_server
+			ORDER BY woocommerce_server, direction, sync_type, status
+			""",
+			as_dict=True,
+		)
 
 	pending_filters = {**row_filters, "status": "Pending"}
 	pending_total = frappe.db.count("WooCommerce Sync Queue", pending_filters)
